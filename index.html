@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go Solar Off-grid Runtime Calculator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 50px;
+            background: linear-gradient(to bottom, #ff9800, #ffcc80, #795548);
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            display: inline-block;
+            color: black;
+        }
+        label, select, input {
+            font-size: 16px;
+            margin: 10px 0;
+            display: block;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Go Solar Off-grid Runtime Calculator</h1>
+    <div class="container">
+        <label for="inverter">Select Inverter:</label>
+        <select id="inverter" onchange="updateVoltageAndLoad()">
+            <option value="12-1000">1kW (12V)</option>
+            <option value="24-3000">3kW (24V)</option>
+            <option value="24-4200">4.2kW (24V)</option>
+            <option value="24-4500">4.5kW (24V)</option>
+            <option value="48-5000">5kW (48V)</option>
+            <option value="48-6000">6kW (48V)</option>
+        </select>
+
+        <label for="wattage">Load Wattage (W) (Inverter Appliances Only):</label>
+        <input type="number" id="wattage" placeholder="Enter total wattage" oninput="validateLoad()">
+        
+        <label for="voltage">Battery Voltage (V):</label>
+        <select id="voltage" onchange="updateBatteryOptions()" disabled>
+        </select>
+
+        <label for="amph">Battery Capacity (Ah):</label>
+        <select id="amph">
+        </select>
+
+        <label for="additionalBatteries">Add More Batteries: "Same (Ah) as first chosen"</label>
+        <input type="number" id="additionalBatteries" placeholder="Number of Additional Batteries" min="0" value="0">
+        <br><br>
+        <button onclick="calculateRuntime()">Calculate</button>
+    </div>
+
+    <script>
+        const batteryOptions = {
+            "12": [150, 200, 250, 300],
+            "24": [120, 280],
+            "48": [120, 200, 240, 250, 280, 300]
+        };
+
+        function updateVoltageAndLoad() {
+            let inverterSelect = document.getElementById("inverter").value.split('-');
+            let voltage = inverterSelect[0];
+            let maxLoad = parseFloat(inverterSelect[1]) * 0.8; // 80% of inverter capacity
+            
+            document.getElementById("voltage").innerHTML = `<option value="${voltage}">${voltage}V</option>`;
+            document.getElementById("voltage").value = voltage;
+            document.getElementById("voltage").disabled = true;
+            document.getElementById("wattage").dataset.maxLoad = maxLoad;
+            updateBatteryOptions();
+        }
+
+        function updateBatteryOptions() {
+            let voltage = document.getElementById("voltage").value;
+            let amphSelect = document.getElementById("amph");
+            amphSelect.innerHTML = "";
+            batteryOptions[voltage].forEach(capacity => {
+                let option = document.createElement("option");
+                option.value = capacity;
+                option.textContent = capacity + " Ah";
+                amphSelect.appendChild(option);
+            });
+        }
+
+        function validateLoad() {
+            let wattageInput = document.getElementById("wattage");
+            let maxLoad = parseFloat(wattageInput.dataset.maxLoad);
+            let inputVal = parseFloat(wattageInput.value);
+            
+            if (inputVal > maxLoad) {
+                alert("Maximum allowed load for this inverter is " + maxLoad + "W");
+                wattageInput.value = maxLoad;
+            }
+        }
+
+        function calculateRuntime() {
+            let wattage = parseFloat(document.getElementById("wattage").value);
+            let voltage = document.getElementById("voltage").value;
+            let amph = parseFloat(document.getElementById("amph").value);
+            let additionalBatteries = parseInt(document.getElementById("additionalBatteries").value) || 0;
+            
+            const voltageMultiplier = {
+                "12": 12.8,
+                "24": 25.6,
+                "48": 51.2
+            };
+            
+            const depthOfDischarge = {
+                "12": 0.50, // 50% DoD for 12V Gel
+                "24": 0.80, // 80% DoD for 24V Lithium
+                "48": 0.80  // 80% DoD for 48V Lithium
+            };
+            
+            if (wattage > 0 && voltage > 0 && amph > 0) {
+                let totalAmph = amph * (1 + additionalBatteries);
+                let usableBatteryCapacityWh = voltageMultiplier[voltage] * totalAmph * depthOfDischarge[voltage];
+                let runtimeHours = usableBatteryCapacityWh / wattage;
+                alert("Estimated Off-grid Runtime: " + runtimeHours.toFixed(2) + " hours");
+            } else {
+                alert("Please enter valid values for all fields.");
+            }
+        }
+
+        // Initialize the inverter selection
+        updateVoltageAndLoad();
+    </script>
+</body>
+</html>
